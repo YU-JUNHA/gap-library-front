@@ -1,0 +1,18 @@
+export type DocumentStatus = "draft" | "published" | "archived";
+
+export type Document = {
+  id: string;
+  title: string;
+  content: any[];
+  contentText: string;
+  summary?: string;
+  tags: string[];
+  category?: string;
+  ownerId: string;
+  ownerName: string;
+  createdAt: string;
+  updatedAt: string;
+  lastOpenedAt?: string;
+  status?: DocumentStatus;
+  ragStatus?: "pending" | "completed";
+};

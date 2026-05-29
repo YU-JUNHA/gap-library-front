@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+* { box-sizing: border-box; }
+
+.card {
+  @apply rounded-xl border border-line bg-white;
+}
