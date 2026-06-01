@@ -1,16 +1,16 @@
 import type { Document } from "@/types/document";
 import { useEffect, useMemo, useState } from "react";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    mockApi.getDocuments().then((d) => {
+    api.getDocuments().then((d) => {
       setDocuments(d);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, []);
 
   const stats = useMemo(() => {

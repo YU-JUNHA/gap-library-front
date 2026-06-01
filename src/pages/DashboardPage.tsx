@@ -1,31 +1,15 @@
 import { Link } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocuments } from "@/hooks/useDocuments";
-
-const uploadStats = {
-  week: [
-    { user: "GAP 관리자", count: 5 },
-    { user: "운영팀 김민수", count: 3 },
-    { user: "교육팀 박하나", count: 4 },
-  ],
-  month: [
-    { user: "GAP 관리자", count: 18 },
-    { user: "운영팀 김민수", count: 12 },
-    { user: "교육팀 박하나", count: 15 },
-  ],
-  year: [
-    { user: "GAP 관리자", count: 120 },
-    { user: "운영팀 김민수", count: 82 },
-    { user: "교육팀 박하나", count: 96 },
-  ],
-};
+import { api } from "@/lib/api";
 
 export function DashboardPage() {
   const { user } = useAuth();
   const { documents } = useDocuments();
-  const [range, setRange] = useState<"week" | "month" | "year">("week");
+  const [stats, setStats] = useState<Array<{ label: string; userName: string; count: number }>>([]);
+  useEffect(() => { api.getDashboardStats().then((d) => setStats(d.uploadTrend.points)).catch(() => setStats([])); }, []);
 
   const myDocs = documents.filter((d) => d.ownerId === user?.id);
   const recentEdited = useMemo(
@@ -52,16 +36,11 @@ export function DashboardPage() {
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-semibold">기간별 사용자 문서 업로드 수</h3>
-        <select className="rounded-lg border border-line bg-white px-2 py-1 text-sm dark:bg-slate-700" value={range} onChange={(e) => setRange(e.target.value as "week" | "month" | "year")}>
-          <option value="week">주</option>
-          <option value="month">월</option>
-          <option value="year">년</option>
-        </select>
       </div>
       <div className="space-y-3">
-        {uploadStats[range].map((row) => (
-          <div key={row.user}>
-            <div className="mb-1 flex justify-between text-sm"><span>{row.user}</span><span>{row.count}개</span></div>
+        {stats.map((row) => (
+          <div key={`${row.label}-${row.userName}`}>
+            <div className="mb-1 flex justify-between text-sm"><span>{row.userName}</span><span>{row.count}개</span></div>
             <div className="h-3 rounded bg-slate-200 dark:bg-slate-700"><div className="h-3 rounded bg-slate-800 dark:bg-slate-300" style={{ width: `${Math.min(100, row.count)}%` }} /></div>
           </div>
         ))}

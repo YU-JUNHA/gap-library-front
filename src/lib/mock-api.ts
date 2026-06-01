@@ -92,7 +92,7 @@ export const mockApi = {
       name: target.name,
       email: target.email,
       role: "member",
-      organization: target.organization,
+      organization: target.organization ?? "GAP",
       createdAt: new Date().toISOString(),
     };
     storage.set(storage.keys.users, [user, ...getUsers()]);

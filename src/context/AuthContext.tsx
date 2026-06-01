@@ -1,7 +1,7 @@
 import { createContext, useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { storage } from "@/lib/storage";
-import { mockApi } from "@/lib/mock-api";
+import { api, clearTokens, setTokens } from "@/lib/api";
 import type { User } from "@/types/user";
 
 type AuthContextValue = {
@@ -21,8 +21,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUser(storage.get<User | null>(storage.keys.auth, null));
-    setLoading(false);
+    const cached = storage.get<User | null>(storage.keys.auth, null);
+    if (!cached) {
+      setLoading(false);
+      return;
+    }
+    api.me().then((me) => {
+      setUser(me);
+      storage.set(storage.keys.auth, me);
+    }).catch(() => {
+      storage.remove(storage.keys.auth);
+      clearTokens();
+      setUser(null);
+    }).finally(() => setLoading(false));
   }, []);
 
   const value = useMemo<AuthContextValue>(() => ({
@@ -30,19 +41,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !!user,
     loading,
     async login(email, password) {
-      const next = await mockApi.login(email, password);
-      setUser(next);
+      const next = await api.login(email, password);
+      setTokens(next.accessToken, next.refreshToken);
+      storage.set(storage.keys.auth, next.user);
+      setUser(next.user);
     },
     async register(payload) {
-      await mockApi.register(payload);
+      await api.register(payload);
     },
     async logout() {
-      await mockApi.logout();
+      const refresh = storage.get<string | null>(storage.keys.refreshToken, null);
+      if (refresh) await api.logout(refresh).catch(() => undefined);
+      clearTokens();
+      storage.remove(storage.keys.auth);
       setUser(null);
     },
     async updateProfile(patch) {
-      const next = await mockApi.updateProfile(patch);
-      if (next) setUser(next);
+      const next = await api.updateProfile(patch);
+      setUser(next);
+      storage.set(storage.keys.auth, next);
     },
   }), [user, loading]);
 

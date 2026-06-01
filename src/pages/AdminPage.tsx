@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import type { User } from "@/types/user";
 import type { SignupRequest } from "@/types/admin";
 
@@ -12,7 +12,7 @@ export function AdminPage() {
 
   const load = async () => {
     setLoading(true);
-    const [u, r] = await Promise.all([mockApi.getUsers(), mockApi.getSignupRequests()]);
+    const [u, r] = await Promise.all([api.getUsers(), api.getSignupRequests()]);
     setUsers(u);
     setRequests(r);
     setLoading(false);
@@ -23,17 +23,17 @@ export function AdminPage() {
   }, []);
 
   const changeRole = async (userId: string, role: User["role"]) => {
-    await mockApi.updateUserRole(userId, role);
+    await api.updateUserRole(userId, role);
     await load();
   };
 
   const approve = async (requestId: string) => {
-    await mockApi.approveSignupRequest(requestId);
+    await api.approveSignupRequest(requestId);
     await load();
   };
 
   const reject = async (requestId: string) => {
-    await mockApi.rejectSignupRequest(requestId);
+    await api.rejectSignupRequest(requestId);
     await load();
   };
 
@@ -94,4 +94,3 @@ export function AdminPage() {
     </div>
   );
 }
-

@@ -1,19 +1,17 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocuments } from "@/hooks/useDocuments";
 import { Card } from "@/components/ui/Card";
-
-const uploads = {
-  week: [3, 4, 2, 6],
-  month: [9, 12, 8, 14],
-  year: [30, 42, 28, 50],
-};
+import { api } from "@/lib/api";
 
 export function MyPage() {
   const { user } = useAuth();
   const { documents } = useDocuments();
-  const [range, setRange] = useState<"week" | "month" | "year">("week");
+  const [uploads, setUploads] = useState<number[]>([]);
+  useEffect(() => {
+    api.getMyStats().then((s) => setUploads(s.myUploadTrend.points.map((p) => p.count))).catch(() => setUploads([]));
+  }, []);
   const myDocs = documents.filter((d) => d.ownerId === user?.id);
 
   return <div className="space-y-4">
@@ -46,14 +44,9 @@ export function MyPage() {
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-semibold">기간별 업로드 수</h3>
-        <select className="rounded-lg border border-line bg-white px-2 py-1 text-sm dark:bg-slate-700" value={range} onChange={(e) => setRange(e.target.value as "week" | "month" | "year")}>
-          <option value="week">주</option>
-          <option value="month">월</option>
-          <option value="year">년</option>
-        </select>
       </div>
       <div className="flex items-end gap-2">
-        {uploads[range].map((v, i) => (
+        {uploads.map((v, i) => (
           <div key={i} className="flex-1">
             <div className="rounded-t bg-slate-800 dark:bg-slate-300" style={{ height: `${v * 8}px` }} />
             <div className="mt-1 text-center text-xs">{i + 1}</div>

@@ -1,5 +1,7 @@
 const KEYS = {
   auth: "gap-auth-user",
+  accessToken: "gap-access-token",
+  refreshToken: "gap-refresh-token",
   docs: "gap-documents",
   users: "gap-users",
   signupRequests: "gap-signup-requests",

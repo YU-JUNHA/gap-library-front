@@ -8,8 +8,9 @@ export type Document = {
   summary?: string;
   tags: string[];
   category?: string;
+  categoryId?: string | null;
   ownerId: string;
-  ownerName: string;
+  ownerName?: string;
   createdAt: string;
   updatedAt: string;
   lastOpenedAt?: string;
