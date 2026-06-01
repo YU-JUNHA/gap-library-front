@@ -11,6 +11,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   register: (payload: { name: string; email: string; password: string; inviteCode: string }) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (patch: Partial<User>) => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -33,12 +34,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(next);
     },
     async register(payload) {
-      const next = await mockApi.register(payload);
-      setUser(next);
+      await mockApi.register(payload);
     },
     async logout() {
       await mockApi.logout();
       setUser(null);
+    },
+    async updateProfile(patch) {
+      const next = await mockApi.updateProfile(patch);
+      if (next) setUser(next);
     },
   }), [user, loading]);
 

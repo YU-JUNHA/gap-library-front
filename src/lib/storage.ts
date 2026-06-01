@@ -1,6 +1,8 @@
 const KEYS = {
   auth: "gap-auth-user",
   docs: "gap-documents",
+  users: "gap-users",
+  signupRequests: "gap-signup-requests",
 };
 
 export const storage = {

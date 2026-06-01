@@ -9,8 +9,61 @@ body {
   color: #0f172a;
 }
 
+html.dark,
+html.dark body {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
 * { box-sizing: border-box; }
 
 .card {
   @apply rounded-xl border border-line bg-white;
+}
+
+.dark .card {
+  @apply border-slate-700 bg-slate-800;
+}
+
+/* Global dark-mode harmonization for existing Tailwind utility classes */
+html.dark .bg-white {
+  background-color: rgb(30 41 59) !important;
+}
+
+html.dark .border-line {
+  border-color: rgb(71 85 105) !important;
+}
+
+html.dark .text-slate-900 {
+  color: rgb(241 245 249) !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  color: rgb(203 213 225) !important;
+}
+
+/* BlockNote editor readable colors per mode */
+.editor-surface [contenteditable="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.dark .editor-surface [contenteditable="true"] {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* BlockNote container/viewer colors in both edit + read modes */
+.editor-surface .bn-container,
+.editor-surface .bn-editor {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.dark .editor-surface .bn-container,
+html.dark .editor-surface .bn-editor {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
 }
