@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import type { Document } from "@/types/document";
 import { useAuth } from "@/hooks/useAuth";
+import { getAvatarSrc } from "@/lib/avatar";
 
 type DocMeta = { likes: number; likedByMe: boolean; comments: Array<{ id: string; text: string; createdAt: string; authorName: string; authorAvatar?: string }> };
 
@@ -39,8 +40,12 @@ export function DocumentViewPage() {
         <div>
           <h2 className="text-2xl font-bold">{doc.title}</h2>
           <div className="mt-1 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-300">
-            <img src={user?.avatarUrl ?? "https://i.pravatar.cc/40?img=8"} alt={doc.ownerName} className="h-6 w-6 rounded-full" />
-            <span>작성자 {doc.ownerName} · {new Date(doc.updatedAt).toLocaleString()}</span>
+            <img
+              src={getAvatarSrc(doc.ownerAvatarUrl || user?.avatarUrl)}
+              alt={doc.ownerName ?? doc.ownerId}
+              className="h-6 w-6 rounded-full"
+            />
+            <span>작성자 {doc.ownerName ?? doc.ownerId} · {new Date(doc.updatedAt).toLocaleString()}</span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -76,7 +81,7 @@ export function DocumentViewPage() {
           }}><MessageSquare size={14}/>등록</Button>
         </div>
         <ul className="space-y-2 text-sm">
-          {meta.comments.map((c) => <li key={c.id} className="rounded-md border border-line p-2 dark:border-slate-700"><div className="flex items-start gap-2"><img src={c.authorAvatar ?? "https://i.pravatar.cc/40?img=6"} alt={c.authorName} className="mt-0.5 h-5 w-5 rounded-full" /><div><div className="text-xs text-slate-500 dark:text-slate-300">{c.authorName}</div><div>{c.text}</div></div></div></li>)}
+          {meta.comments.map((c) => <li key={c.id} className="rounded-md border border-line p-2 dark:border-slate-700"><div className="flex items-start gap-2"><img src={getAvatarSrc(c.authorAvatar)} alt={c.authorName} className="mt-0.5 h-5 w-5 rounded-full" /><div><div className="text-xs text-slate-500 dark:text-slate-300">{c.authorName}</div><div>{c.text}</div></div></div></li>)}
         </ul>
       </div>
     </Card>

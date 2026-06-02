@@ -11,6 +11,7 @@ import { DocumentViewPage } from "@/pages/DocumentViewPage";
 import { DocumentDetailPage } from "@/pages/DocumentDetailPage";
 import { MyPage } from "@/pages/MyPage";
 import { ProfileEditPage } from "@/pages/ProfileEditPage";
+import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { CategoriesPage } from "@/pages/CategoriesPage";
 import { TemplatesPage } from "@/pages/TemplatesPage";
 import { AdminPage } from "@/pages/AdminPage";
@@ -30,6 +31,7 @@ export function AppRouter() {
           <Route path="documents/:documentId/edit" element={<DocumentDetailPage />} />
           <Route path="mypage" element={<MyPage />} />
           <Route path="mypage/edit" element={<ProfileEditPage />} />
+          <Route path="mypage/change-password" element={<ChangePasswordPage />} />
           <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

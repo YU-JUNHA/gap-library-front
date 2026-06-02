@@ -130,11 +130,33 @@
   "organization": "GAP"
 }
 ```
+`avatarUrl`은 `null`을 허용하며, 전달 시 기본 프로필 이미지 상태로 되돌릴 수 있어야 합니다.
 
 ### POST `/api/v1/users/me/avatar`
 - `multipart/form-data`
 - 필드: `file`
 - 응답: 업로드된 `avatarUrl`
+
+### PATCH `/api/v1/users/me/password`
+요청:
+```json
+{
+  "currentPassword": "current-password",
+  "newPassword": "new-password"
+}
+```
+동작:
+- 현재 비밀번호 검증
+- 새 비밀번호는 bcrypt로 재해시하여 저장
+- 최소 길이 등 비밀번호 정책 적용
+- 성공 응답:
+```json
+{ "data": { "success": true } }
+```
+권장 규칙:
+- 현재 비밀번호 불일치 시 `UNAUTHORIZED` 또는 `VALIDATION_ERROR`
+- 새 비밀번호가 현재 비밀번호와 같으면 거부
+- 새 비밀번호는 최소 8자 이상 권장
 
 ## 5.2 관리자: 사용자 목록/역할 변경
 
@@ -506,4 +528,3 @@ type Template = {
 - RAG 등록 비동기 큐
 - 감사 로그(audit log)
 - 조직/팀 단위 권한
-

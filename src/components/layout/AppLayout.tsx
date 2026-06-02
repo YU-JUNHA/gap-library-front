@@ -38,7 +38,6 @@ export function AppLayout() {
             </NavLink>
           ) : null}
         </div>
-        <div className="mt-8 text-xs text-slate-500 dark:text-slate-400">최근 문서 · 내 문서</div>
         <div className="mt-auto pt-8">
           <Button className="mb-2 w-full bg-slate-700" onClick={() => setTheme((prev) => prev === "light" ? "dark" : "light")}>
             {theme === "light" ? <Moon size={16}/> : <Sun size={16}/>}

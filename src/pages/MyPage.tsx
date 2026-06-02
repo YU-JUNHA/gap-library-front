@@ -1,24 +1,22 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useDocuments } from "@/hooks/useDocuments";
 import { Card } from "@/components/ui/Card";
 import { api } from "@/lib/api";
+import { getAvatarSrc } from "@/lib/avatar";
 
 export function MyPage() {
   const { user } = useAuth();
-  const { documents } = useDocuments();
-  const [uploads, setUploads] = useState<number[]>([]);
+  const [stats, setStats] = useState<{ uploadedFileCount: number; recentUploads: Array<{ documentId: string; title: string }>; myUploadTrend: { points: Array<{ label: string; count: number }> } } | null>(null);
   useEffect(() => {
-    api.getMyStats().then((s) => setUploads(s.myUploadTrend.points.map((p) => p.count))).catch(() => setUploads([]));
+    api.getMyStats().then(setStats).catch(() => setStats(null));
   }, []);
-  const myDocs = documents.filter((d) => d.ownerId === user?.id);
 
   return <div className="space-y-4">
     <Card>
       <h3 className="font-semibold">사용자 프로필</h3>
       <div className="mt-3 flex items-center gap-3">
-        <img src={user?.avatarUrl ?? "https://i.pravatar.cc/100?img=10"} alt={user?.name} className="h-14 w-14 rounded-full" />
+        <img src={getAvatarSrc(user?.avatarUrl)} alt={user?.name} className="h-14 w-14 rounded-full" />
         <div className="text-sm">
           <div>이름: {user?.name}</div>
           <div>이메일: {user?.email}</div>
@@ -31,13 +29,13 @@ export function MyPage() {
 
     <Card>
       <h3 className="font-semibold">업로드 파일 수</h3>
-      <div className="mt-2 text-2xl font-bold">{myDocs.length}</div>
+      <div className="mt-2 text-2xl font-bold">{stats?.uploadedFileCount ?? 0}</div>
     </Card>
 
     <Card>
       <h3 className="font-semibold">최근 업로드 파일 목록</h3>
       <ul className="mt-3 space-y-2 text-sm">
-        {myDocs.slice(0, 6).map((d) => <li key={d.id}><Link to={`/documents/${d.id}`} className="hover:underline">{d.title}</Link></li>)}
+        {(stats?.recentUploads ?? []).map((d) => <li key={d.documentId}><Link to={`/documents/${d.documentId}`} className="hover:underline">{d.title}</Link></li>)}
       </ul>
     </Card>
 
@@ -46,9 +44,9 @@ export function MyPage() {
         <h3 className="font-semibold">기간별 업로드 수</h3>
       </div>
       <div className="flex items-end gap-2">
-        {uploads.map((v, i) => (
+        {(stats?.myUploadTrend.points ?? []).map((point, i) => (
           <div key={i} className="flex-1">
-            <div className="rounded-t bg-slate-800 dark:bg-slate-300" style={{ height: `${v * 8}px` }} />
+            <div className="rounded-t bg-slate-800 dark:bg-slate-300" style={{ height: `${point.count * 8}px` }} />
             <div className="mt-1 text-center text-xs">{i + 1}</div>
           </div>
         ))}

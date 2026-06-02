@@ -11,6 +11,7 @@ export type Document = {
   categoryId?: string | null;
   ownerId: string;
   ownerName?: string;
+  ownerAvatarUrl?: string;
   createdAt: string;
   updatedAt: string;
   lastOpenedAt?: string;

@@ -7,8 +7,8 @@ export function useDocuments() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getDocuments().then((d) => {
-      setDocuments(d);
+    api.getDocuments({ page: 1, pageSize: 9 }).then((d) => {
+      setDocuments(d.data);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);

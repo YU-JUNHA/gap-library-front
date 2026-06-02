@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import type { User } from "@/types/user";
 import type { SignupRequest } from "@/types/admin";
+import { getAvatarSrc } from "@/lib/avatar";
 
 export function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -73,7 +74,7 @@ export function AdminPage() {
           <div className="space-y-3">
             {users.map((u) => (
               <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line p-3 dark:border-slate-700">
-                <img src={u.avatarUrl ?? "https://i.pravatar.cc/40?img=9"} alt={u.name} className="h-8 w-8 rounded-full" />
+                <img src={getAvatarSrc(u.avatarUrl)} alt={u.name} className="h-8 w-8 rounded-full" />
                 <div className="min-w-[220px]">
                   <div className="font-medium">{u.name}</div>
                   <div className="text-sm text-slate-500 dark:text-slate-300">{u.email}</div>

@@ -57,7 +57,7 @@ export const mockApi = {
     await delay(100);
     storage.remove(storage.keys.auth);
   },
-  async updateProfile(patch: Partial<User>): Promise<User | null> {
+  async updateProfile(patch: Partial<User> & { avatarUrl?: string | null }): Promise<User | null> {
     await delay(100);
     const current = storage.get<User | null>(storage.keys.auth, null);
     if (!current) return null;
@@ -65,6 +65,12 @@ export const mockApi = {
     storage.set(storage.keys.auth, next);
     storage.set(storage.keys.users, getUsers().map((u) => (u.id === current.id ? next : u)));
     return next;
+  },
+  async changePassword(payload: { currentPassword: string; newPassword: string }) {
+    await delay(120);
+    if (!payload.currentPassword.trim()) throw new Error("현재 비밀번호를 입력해주세요.");
+    if (payload.newPassword.trim().length < 8) throw new Error("새 비밀번호는 8자 이상이어야 합니다.");
+    return { success: true };
   },
   async getUsers() {
     await delay(120);

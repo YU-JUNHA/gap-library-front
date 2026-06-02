@@ -11,7 +11,9 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   register: (payload: { name: string; email: string; password: string; inviteCode: string }) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (patch: Partial<User>) => Promise<void>;
+  updateProfile: (patch: { name?: string; organization?: string; avatarUrl?: string | null }) => Promise<void>;
+  changePassword: (payload: { currentPassword: string; newPassword: string }) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -60,6 +62,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const next = await api.updateProfile(patch);
       setUser(next);
       storage.set(storage.keys.auth, next);
+    },
+    async changePassword(payload) {
+      await api.changePassword(payload);
+    },
+    async uploadAvatar(file) {
+      const { avatarUrl } = await api.uploadMyAvatar(file);
+      setUser((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, avatarUrl };
+        storage.set(storage.keys.auth, next);
+        return next;
+      });
     },
   }), [user, loading]);
 

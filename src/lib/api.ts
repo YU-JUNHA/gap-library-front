@@ -2,12 +2,38 @@ import { storage } from "@/lib/storage";
 import type { Document } from "@/types/document";
 import type { User } from "@/types/user";
 import type { SignupRequest } from "@/types/admin";
-
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8000/api/v1";
 
 type ApiEnvelope<T> = { data: T; meta?: { page: number; pageSize: number; total: number } };
+type PagedMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+};
+type PagedResponse<T> = { data: T[]; meta: PagedMeta };
+type DocumentListQuery = {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  sort?: "createdAt" | "updatedAt" | "author";
+  order?: "asc" | "desc";
+  categoryId?: string | null;
+};
 
-async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+function buildQuery(params: Record<string, string | number | boolean | null | undefined>) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    searchParams.set(key, String(value));
+  });
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+}
+
+async function requestEnvelope<T>(path: string, init: RequestInit = {}, retry = true): Promise<ApiEnvelope<T>> {
   const accessToken = storage.get<string | null>(storage.keys.accessToken, null);
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
@@ -16,13 +42,25 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (res.status === 401 && retry) {
     const refreshed = await refreshToken();
-    if (refreshed) return request<T>(path, init, false);
+    if (refreshed) return requestEnvelope<T>(path, init, false);
   }
   if (!res.ok) {
     const payload = await res.json().catch(() => null);
     throw new Error(payload?.error?.message ?? "API 요청 중 오류가 발생했습니다.");
   }
-  const payload = await res.json() as ApiEnvelope<T>;
+  return res.json() as Promise<ApiEnvelope<T>>;
+}
+
+async function requestPage<T>(path: string, init: RequestInit = {}, retry = true): Promise<PagedResponse<T>> {
+  const payload = await requestEnvelope<T[]>(path, init, retry);
+  return {
+    data: payload.data,
+    meta: payload.meta as PagedMeta,
+  };
+}
+
+async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+  const payload = await requestEnvelope<T>(path, init, retry);
   return payload.data;
 }
 
@@ -58,9 +96,26 @@ export const api = {
   me: () => request<User>("/auth/me"),
   register: (payload: { name: string; email: string; password: string; inviteCode: string }) => request<SignupRequest>("/signup-requests", { method: "POST", body: JSON.stringify(payload) }),
   logout: (refreshTokenValue: string) => request<{ success: boolean }>("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken: refreshTokenValue }) }),
-  updateProfile: (patch: Partial<User>) => request<User>("/users/me", { method: "PATCH", body: JSON.stringify(patch) }),
+  updateProfile: (patch: { name?: string; organization?: string; avatarUrl?: string | null }) => request<User>("/users/me", { method: "PATCH", body: JSON.stringify(patch) }),
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    request<{ success: boolean }>("/users/me/password", { method: "PATCH", body: JSON.stringify(payload) }),
+  uploadMyAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<{ avatarUrl: string }>("/users/me/avatar", { method: "POST", body: formData });
+  },
 
-  getDocuments: () => request<Document[]>("/documents"),
+  getDocuments: (params: DocumentListQuery = {}) =>
+    requestPage<Document>(
+      `/documents${buildQuery({
+        page: params.page ?? 1,
+        pageSize: params.pageSize ?? 9,
+        q: params.q?.trim() ?? "",
+        sort: params.sort ?? "createdAt",
+        order: params.order ?? "desc",
+        categoryId: params.categoryId,
+      })}`,
+    ),
   getDocumentById: (id: string) => request<Document>(`/documents/${id}`),
   createDocument: (payload: { title: string; content: any[]; categoryId?: string | null; status?: "draft" | "published" }) => request<Document>("/documents", { method: "POST", body: JSON.stringify(payload) }),
   patchDocument: (id: string, patch: Partial<Document> & { categoryId?: string | null }) => request<Document>(`/documents/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
