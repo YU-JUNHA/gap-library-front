@@ -2,7 +2,7 @@ import type { ChangeEvent, DragEvent, MouseEvent, PointerEvent, KeyboardEvent } 
 import { Folder, FileText } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { Document } from "@/types/document";
-import { getAvatarSrc } from "@/lib/avatar";
+import { getDocumentAuthorAvatarSrc } from "@/lib/document-avatar";
 
 export type ExplorerFolderEntry = {
   kind: "folder";
@@ -36,10 +36,6 @@ type ExplorerCardProps = {
   cut?: boolean;
   draggable?: boolean;
 };
-
-function getAvatarUrl(document: Document) {
-  return getAvatarSrc(document.ownerAvatarUrl);
-}
 
 function ExplorerIcon({ kind }: { kind: "folder" | "doc" }) {
   return kind === "folder" ? (
@@ -174,7 +170,7 @@ export function ExplorerCard(props: ExplorerCardProps) {
                   <span className="shrink-0 text-slate-300 dark:text-slate-600">|</span>
                   <div className="flex min-w-0 items-center gap-1 text-xs text-slate-500 dark:text-slate-300">
                     <img
-                      src={getAvatarUrl(document)}
+                      src={getDocumentAuthorAvatarSrc(document)}
                       alt={document.ownerName ?? document.ownerId}
                       className="h-4 w-4 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600"
                     />
@@ -195,7 +191,7 @@ export function ExplorerCard(props: ExplorerCardProps) {
 
               <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-slate-500 dark:text-slate-300">
                 <img
-                  src={getAvatarUrl(document)}
+                  src={getDocumentAuthorAvatarSrc(document)}
                   alt={document.ownerName ?? document.ownerId}
                   className="h-5 w-5 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600"
                 />

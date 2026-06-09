@@ -44,26 +44,16 @@ html.dark .text-slate-500 {
   color: rgb(203 213 225) !important;
 }
 
-/* BlockNote editor readable colors per mode */
-.editor-surface [contenteditable="true"] {
-  background: #ffffff !important;
-  color: #0f172a !important;
-}
-
-html.dark .editor-surface [contenteditable="true"] {
-  background: #0f172a !important;
-  color: #e2e8f0 !important;
-}
-
-/* BlockNote container/viewer colors in both edit + read modes */
+/* BlockNote should inherit the card surface so the editor feels like one sheet */
+.editor-surface,
 .editor-surface .bn-container,
-.editor-surface .bn-editor {
-  background: #ffffff !important;
-  color: #0f172a !important;
+.editor-surface .bn-editor,
+.editor-surface [contenteditable="true"] {
+  background: transparent !important;
 }
 
-html.dark .editor-surface .bn-container,
-html.dark .editor-surface .bn-editor {
-  background: #0f172a !important;
-  color: #e2e8f0 !important;
+.editor-surface .bn-container,
+.editor-surface .bn-editor,
+.editor-surface [contenteditable="true"] {
+  color: inherit !important;
 }

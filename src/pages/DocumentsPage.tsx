@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Clock3, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -27,6 +27,13 @@ type PagedMeta = {
   totalPages: number;
   hasNext: boolean;
   hasPrev: boolean;
+};
+
+type DraftDocument = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  categoryName?: string | null;
 };
 
 const ROOT_ID = "root";
@@ -174,6 +181,9 @@ export function DocumentsPage() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectionBox, setSelectionBox] = useState<{ startX: number; startY: number; x: number; y: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [draftDocuments, setDraftDocuments] = useState<DraftDocument[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(true);
+  const [draftPickerOpen, setDraftPickerOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef(new Map<string, HTMLDivElement>());
   const activeSelectionPointerId = useRef<number | null>(null);
@@ -196,6 +206,7 @@ export function DocumentsPage() {
         sort: currentSort.sort,
         order: currentSort.order,
         categoryId: searchQuery ? undefined : folderId === ROOT_ID ? null : folderId,
+        status: "published",
       });
       const safeTotalPages = Math.max(1, response.meta.totalPages || 1);
       if (page > safeTotalPages) {
@@ -226,6 +237,28 @@ export function DocumentsPage() {
   useEffect(() => {
     void loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    let alive = true;
+    setDraftsLoading(true);
+    api
+      .getDashboardStats(20)
+      .then((response) => {
+        if (!alive) return;
+        setDraftDocuments(response.draftDocuments ?? []);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setDraftDocuments([]);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setDraftsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const tree = useMemo(() => buildTree(categories), [categories]);
   const currentFolder = useMemo(() => findNode(tree, folderId) ?? tree, [tree, folderId]);
@@ -414,6 +447,13 @@ export function DocumentsPage() {
   };
 
   const createDocInCurrentFolder = async () => {
+    const hasDrafts = draftDocuments.length > 0;
+    if (hasDrafts) {
+      setDraftPickerOpen(true);
+      return;
+    }
+    if (draftsLoading) return;
+
     const next = await api.createDocument({
       title: folderId === ROOT_ID ? "새 문서" : `${currentFolder.name} 새 문서`,
       content: [{ type: "paragraph", content: "새 문서를 시작하세요." }],
@@ -421,6 +461,22 @@ export function DocumentsPage() {
       categoryId: folderId === ROOT_ID ? null : folderId,
     });
     nav(`/documents/${next.id}/edit`);
+  };
+
+  const createFreshDocument = async () => {
+    setDraftPickerOpen(false);
+    const next = await api.createDocument({
+      title: folderId === ROOT_ID ? "새 문서" : `${currentFolder.name} 새 문서`,
+      content: [{ type: "paragraph", content: "새 문서를 시작하세요." }],
+      status: "draft",
+      categoryId: folderId === ROOT_ID ? null : folderId,
+    });
+    nav(`/documents/${next.id}/edit`);
+  };
+
+  const continueDraftDocument = (documentId: string) => {
+    setDraftPickerOpen(false);
+    nav(`/documents/${documentId}/edit`);
   };
 
   const startSelection = (key: string, event: ReactMouseEvent | ReactPointerEvent) => {
@@ -485,22 +541,24 @@ export function DocumentsPage() {
   const deleteSelection = async () => {
     const uniqueKeys = Array.from(new Set(selectedKeys));
     if (uniqueKeys.length === 0) return;
-    const confirmed = window.confirm(`${uniqueKeys.length}개 항목을 삭제할까요?`);
-    if (!confirmed) return;
-
     const folders = uniqueKeys.filter((key) => key.startsWith("folder:"));
     const docs = uniqueKeys.filter((key) => key.startsWith("doc:"));
     const folderIds = folders.map((key) => key.replace("folder:", ""));
     const docIds = docs.map((key) => key.replace("doc:", ""));
 
+    if (docIds.length === 0) {
+      setStatusMessage("자료실에서는 문서만 삭제할 수 있습니다. 폴더 삭제는 카테고리 관리에서 해주세요.");
+      setContextMenu(null);
+      return;
+    }
+
+    const confirmed = window.confirm(`${docIds.length}개 문서를 삭제할까요? 폴더는 삭제되지 않습니다.`);
+    if (!confirmed) return;
+
     await Promise.all([
       ...docIds.map((id) => api.deleteDocument(id)),
-      ...folderIds.map((id) => api.deleteCategory(id)),
     ]);
 
-    if (folderIds.length > 0) {
-      await refreshCategories();
-    }
     if (docIds.length > 0) {
       await refreshDocuments();
     }
@@ -509,7 +567,7 @@ export function DocumentsPage() {
     setAnchorKey(null);
     setEditingKey(null);
     setContextMenu(null);
-    setStatusMessage("삭제했습니다.");
+    setStatusMessage(folderIds.length > 0 ? "문지만 삭제했습니다. 폴더는 유지됩니다." : "삭제했습니다.");
   };
 
   const copySelection = () => {
@@ -733,7 +791,7 @@ export function DocumentsPage() {
           }}
           className="w-56"
         />
-        <Button className="whitespace-nowrap" onClick={createDocInCurrentFolder}>
+        <Button className="whitespace-nowrap" onClick={() => void createDocInCurrentFolder()}>
           <Plus size={16} />
           문서 작성
         </Button>
@@ -882,6 +940,71 @@ export function DocumentsPage() {
           <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40" type="button" onClick={deleteSelection}>
             삭제
           </button>
+        </div>
+      ) : null}
+
+      {draftPickerOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 backdrop-blur-[2px]"
+          onClick={() => setDraftPickerOpen(false)}
+        >
+          <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] dark:border-zinc-800 dark:bg-zinc-900" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                  <Clock3 size={18} />
+                </div>
+                <div>
+                  <h3 className="text-[18px] font-semibold tracking-[-0.02em] text-zinc-950 dark:text-zinc-50">작성하던 문서가 있습니다</h3>
+                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">이어서 작성하시겠습니까?</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-full p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                onClick={() => setDraftPickerOpen(false)}
+                aria-label="닫기"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="max-h-[380px] overflow-y-auto px-5 py-4">
+              <div className="space-y-2">
+                {draftDocuments.map((draft) => (
+                  <button
+                    key={draft.id}
+                    type="button"
+                    onClick={() => continueDraftDocument(draft.id)}
+                    className="flex w-full items-center justify-between gap-4 rounded-2xl border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/60"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">{draft.title}</div>
+                      <div className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                        {draft.categoryName ? `${draft.categoryName} · ` : ""}
+                        {new Date(draft.updatedAt).toLocaleDateString("ko-KR")}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-xs font-medium text-zinc-400 dark:text-zinc-500">이어 작성</div>
+                  </button>
+                ))}
+                {!draftsLoading && draftDocuments.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                    작성 중인 문서가 없습니다.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-zinc-200 px-5 py-4 dark:border-zinc-800">
+              <Button type="button" className="bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700" onClick={() => setDraftPickerOpen(false)}>
+                취소
+              </Button>
+              <Button type="button" onClick={() => void createFreshDocument()}>
+                새 문서 작성
+              </Button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

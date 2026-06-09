@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
+import type { BlockNoteEditor } from "@blocknote/core";
 import { AlertTriangle, ChevronDown, ChevronRight, FileDown, Folder, FolderOpen, SpellCheck, WandSparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -17,8 +18,137 @@ type SaveMode = "saved" | "saving" | "dirty";
 const ROOT_ID = "root";
 const AUTOSAVE_INTERVAL_MS = 30000;
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeInlineContent(content: unknown): any {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content.flatMap((item) => {
+      const normalized = normalizeInlineContent(item);
+      return normalized === null || normalized === undefined ? [] : [normalized];
+    });
+  }
+
+  if (!isRecord(content)) return null;
+
+  if (content.type === "text") {
+    return {
+      type: "text",
+      text: typeof content.text === "string" ? content.text : "",
+      styles: isRecord(content.styles) ? content.styles : {},
+    };
+  }
+
+  if (content.type === "link") {
+    const nested = normalizeInlineContent(content.content);
+    return nested
+      ? {
+          ...content,
+          content: nested,
+        }
+      : null;
+  }
+
+  if (content.type === "tableContent") {
+    const rows = Array.isArray(content.rows)
+      ? content.rows
+          .map((row) => {
+            if (!isRecord(row) || !Array.isArray(row.cells)) return null;
+            return {
+              ...row,
+              cells: row.cells
+                .map((cell) => normalizeInlineContent(cell))
+                .filter((cell) => cell !== null && cell !== undefined),
+            };
+          })
+          .filter((row) => row !== null && row !== undefined)
+      : [];
+
+    return {
+      type: "tableContent",
+      columnWidths: Array.isArray(content.columnWidths) ? content.columnWidths : [],
+      rows,
+    };
+  }
+
+  if (typeof content.type === "string") {
+    const next: Record<string, any> = { ...content };
+    if (!isRecord(next.props)) next.props = {};
+    if (next.content !== undefined) {
+      const normalizedContent = normalizeInlineContent(next.content);
+      if (normalizedContent !== null) {
+        next.content = normalizedContent;
+      } else {
+        delete next.content;
+      }
+    }
+    if (Array.isArray(next.children)) {
+      next.children = next.children
+        .map((child: unknown) => normalizeBlock(child, ""))
+        .filter((child: unknown) => child !== null && child !== undefined);
+    }
+    return next;
+  }
+
+  return null;
+}
+
+function normalizeBlock(block: unknown, fallbackText: string): any | null {
+  if (!isRecord(block) || typeof block.type !== "string") return null;
+
+  const next: Record<string, any> = {
+    type: block.type,
+    props: isRecord(block.props) ? { ...block.props } : {},
+  };
+
+  if (block.content !== undefined) {
+    const normalizedContent = normalizeInlineContent(block.content);
+    if (normalizedContent !== null) {
+      next.content = normalizedContent;
+    }
+  }
+
+  if (Array.isArray(block.children)) {
+    next.children = block.children
+      .map((child) => normalizeBlock(child, fallbackText))
+      .filter((child) => child !== null && child !== undefined);
+  }
+
+  if (
+    (next.type === "paragraph" ||
+      next.type === "heading" ||
+      next.type === "bulletListItem" ||
+      next.type === "numberedListItem" ||
+      next.type === "checkListItem") &&
+    next.content === undefined
+  ) {
+    next.content = fallbackText || "";
+  }
+
+  if (next.type === "heading") {
+    if (!isRecord(next.props)) next.props = {};
+    if (typeof next.props.level !== "number") next.props.level = 1;
+  }
+
+  return next;
+}
+
 function toBlockNoteBlocks(content: unknown, fallbackText: string) {
-  if (Array.isArray(content) && content.length > 0) return content as any[];
+  if (!Array.isArray(content) || content.length === 0) {
+    return [{ type: "paragraph", content: fallbackText || "" }] as any[];
+  }
+
+  const normalized = content
+    .map((block) => normalizeBlock(block, fallbackText))
+    .filter(Boolean);
+
+  if (normalized.length > 0) return normalized as any[];
+
   return [{ type: "paragraph", content: fallbackText || "" }] as any[];
 }
 
@@ -83,7 +213,7 @@ function ModalShell({
         <div className="border-b border-slate-800 bg-slate-900 px-10 py-6 text-slate-50">
           <div className="flex min-h-[52px] items-center justify-between gap-4">
             <div className="min-w-0 pl-4">
-              <h3 className="text-[30px] font-extrabold tracking-tight text-white">{title}</h3>
+              <h3 className="text-[22px] font-extrabold tracking-tight text-white lg:text-[24px]">{title}</h3>
             </div>
             <button
               type="button"
@@ -276,10 +406,77 @@ function TemplateConfirmModal({
   );
 }
 
+function ExportFormatModal({
+  onClose,
+  onSelect,
+}: {
+  onClose: () => void;
+  onSelect: (format: "pdf" | "docx" | "md" | "txt") => void;
+}) {
+  const formats: Array<{ format: "pdf" | "docx" | "md" | "txt"; label: string; description: string }> = [
+    { format: "pdf", label: "PDF", description: "인쇄용 추출은 추후 지원 예정입니다." },
+    { format: "docx", label: "DOCX", description: "워드 파일 추출은 추후 지원 예정입니다." },
+    { format: "md", label: "Markdown", description: "마크다운 파일로 추출합니다." },
+    { format: "txt", label: "TXT", description: "일반 텍스트 파일로 추출합니다." },
+  ];
+
+  return (
+    <ModalShell title="추출 형식 선택" onClose={onClose} maxWidthPx={560}>
+      <div className="space-y-2">
+        {formats.map((item) => (
+          <button
+            key={item.format}
+            type="button"
+            className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left transition hover:border-sky-300 hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-sky-700 dark:hover:bg-slate-800"
+            onClick={() => onSelect(item.format)}
+          >
+            <div>
+              <div className="font-semibold text-slate-900 dark:text-slate-50">{item.label}</div>
+              <div className="mt-1 text-sm text-slate-500 dark:text-slate-300">{item.description}</div>
+            </div>
+            <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              선택
+            </div>
+          </button>
+        ))}
+      </div>
+      <div className="mt-5 flex justify-end">
+        <Button className="bg-slate-700" onClick={onClose}>
+          닫기
+        </Button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function DocumentContentEditor({
+  doc,
+  theme,
+  onEditorReady,
+  onDirty,
+}: {
+  doc: Document;
+  theme: "light" | "dark";
+  onEditorReady: (editor: BlockNoteEditor<any, any, any> | null) => void;
+  onDirty: () => void;
+}) {
+  const editor = useCreateBlockNote({
+    initialContent: toBlockNoteBlocks(doc.content, doc.contentText || ""),
+  });
+
+  useEffect(() => {
+    onEditorReady(editor);
+    return () => onEditorReady(null);
+  }, [editor, onEditorReady]);
+
+  return <BlockNoteView editor={editor} theme={theme} onChange={onDirty} />;
+}
+
 export function DocumentDetailPage() {
   const { documentId } = useParams();
   const nav = useNavigate();
   const [doc, setDoc] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isDesktopLayout, setIsDesktopLayout] = useState(() => {
     if (typeof window === "undefined") return true;
     return window.innerWidth >= 1024;
@@ -294,22 +491,38 @@ export function DocumentDetailPage() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<TemplateItem | null>(null);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [dirtyTick, setDirtyTick] = useState(0);
   const saveLockRef = useRef(false);
-
-  const editor = useCreateBlockNote({ initialContent: [{ type: "paragraph", content: "" }] });
+  const editorRef = useRef<BlockNoteEditor<any, any, any> | null>(null);
 
   useEffect(() => {
-    if (!documentId) return;
+    let active = true;
 
-    api.getDocumentById(documentId).then((nextDoc) => {
+    async function load() {
+      if (!documentId) {
+        if (active) setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      const nextDoc = await api.getDocumentById(documentId).catch(() => null);
+      if (!active) return;
+
       setDoc(nextDoc);
-      setTitle(nextDoc.title);
-      setSelectedCategoryId(nextDoc.categoryId ?? null);
-    });
+      if (nextDoc) {
+        setTitle(nextDoc.title);
+        setSelectedCategoryId(nextDoc.categoryId ?? null);
+      }
+      setLoading(false);
+    }
+
+    load();
     api.getTemplates().then(setTemplates).catch(() => setTemplates([]));
     api.getCategories().then(setCategories).catch(() => setCategories([]));
+    return () => {
+      active = false;
+    };
   }, [documentId]);
 
   useEffect(() => {
@@ -322,13 +535,8 @@ export function DocumentDetailPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    if (!doc) return;
-    const blocks = toBlockNoteBlocks(doc.content, doc.contentText || "");
-    editor.replaceBlocks(editor.document, blocks as any);
-  }, [doc?.id]);
-
   const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const editorTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
   const saveLabel = useMemo(() => {
     if (saveState === "saving") return "저장 중";
     if (saveState === "dirty") return "변경사항 있음";
@@ -342,7 +550,8 @@ export function DocumentDetailPage() {
   };
 
   const saveDocument = async (status: "draft" | "published", navigateAfterSave: boolean) => {
-    if (!doc || saveLockRef.current) return;
+    const editor = editorRef.current;
+    if (!doc || !editor || saveLockRef.current) return;
     saveLockRef.current = true;
     setSaveState("saving");
     if (status === "published") {
@@ -397,6 +606,8 @@ export function DocumentDetailPage() {
   }, [doc?.id, dirtyTick, saveState, title, selectedCategoryId]);
 
   const applyTemplate = async (template: TemplateItem) => {
+    const editor = editorRef.current;
+    if (!editor) return;
     const blocks = await editor.tryParseMarkdownToBlocks(template.content || "");
     editor.replaceBlocks(editor.document, blocks.length ? blocks : [{ type: "paragraph", content: "" }]);
     setTemplateModalOpen(false);
@@ -404,8 +615,9 @@ export function DocumentDetailPage() {
   };
 
   const downloadExport = async (format: "pdf" | "docx" | "md" | "txt") => {
-    setExportMenuOpen(false);
-    if (!doc) return;
+    const editor = editorRef.current;
+    setExportModalOpen(false);
+    if (!doc || !editor) return;
 
     if (format === "pdf" || format === "docx") {
       setMessage(`${format.toUpperCase()} 추출은 추후 구현 예정입니다.`);
@@ -426,6 +638,7 @@ export function DocumentDetailPage() {
     setMessage(`${format.toUpperCase()} 파일을 추출했습니다.`);
   };
 
+  if (loading) return <div>문서를 불러오는 중...</div>;
   if (!doc) return <div>문서를 찾을 수 없습니다.</div>;
 
   return (
@@ -438,20 +651,34 @@ export function DocumentDetailPage() {
             : { display: "flex", flexDirection: "column" }
         }
       >
-        <section className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-center gap-2 rounded-xl border border-line bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
-            <input
-              className="flex-1 rounded-md border border-line px-3 py-2 dark:border-slate-700 dark:bg-slate-700"
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
-                markDirty();
-              }}
-            />
-            <span className="text-sm text-slate-500 dark:text-slate-300">{saveLabel}</span>
-          </div>
-          <div className="editor-surface rounded-xl border border-line bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
-            <BlockNoteView editor={editor} onChange={() => markDirty()} />
+        <section className="min-w-0 flex-1">
+          <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800">
+            <div className="border-b border-line px-5 py-4 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">문서 편집</div>
+                <span className="text-sm text-slate-500 dark:text-slate-300">{saveLabel}</span>
+              </div>
+              <input
+                className="mt-3 w-full border-0 bg-transparent p-0 text-[28px] font-semibold tracking-tight text-slate-950 outline-none placeholder:text-slate-300 dark:text-slate-50 dark:placeholder:text-slate-500"
+                value={title}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  markDirty();
+                }}
+                placeholder="제목을 입력하세요"
+              />
+            </div>
+            <div className="editor-surface p-3 sm:p-4">
+              <DocumentContentEditor
+                key={doc.id}
+                doc={doc}
+                theme={editorTheme}
+                onEditorReady={(nextEditor) => {
+                  editorRef.current = nextEditor;
+                }}
+                onDirty={() => markDirty()}
+              />
+            </div>
           </div>
         </section>
 
@@ -493,30 +720,10 @@ export function DocumentDetailPage() {
           <Card>
             <h3 className="font-semibold">저장</h3>
             <div className="mt-3 space-y-2">
-              <div
-                className="relative"
-                onMouseEnter={() => setExportMenuOpen(true)}
-                onMouseLeave={() => setExportMenuOpen(false)}
-              >
-                <Button className="w-full justify-center bg-slate-700">
-                  <FileDown size={14} />
-                  추출
-                </Button>
-                {exportMenuOpen ? (
-                  <div className="absolute left-full top-0 z-20 ml-2 w-44 rounded-xl border border-line bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                    {(["pdf", "docx", "md", "txt"] as const).map((format) => (
-                      <button
-                        key={format}
-                        type="button"
-                        className="w-full rounded-lg px-3 py-2 text-left text-sm capitalize hover:bg-slate-100 dark:hover:bg-slate-800"
-                        onClick={() => void downloadExport(format)}
-                      >
-                        {format} 추출
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+              <Button className="w-full justify-center bg-slate-700" onClick={() => setExportModalOpen(true)}>
+                <FileDown size={14} />
+                추출
+              </Button>
 
               <Button className="w-full justify-center" onClick={() => setCategoryModalOpen(true)}>
                 저장
@@ -562,6 +769,15 @@ export function DocumentDetailPage() {
           onConfirm={() => {
             void applyTemplate(pendingTemplate);
             setPendingTemplate(null);
+          }}
+        />
+      ) : null}
+
+      {exportModalOpen ? (
+        <ExportFormatModal
+          onClose={() => setExportModalOpen(false)}
+          onSelect={(format) => {
+            void downloadExport(format);
           }}
         />
       ) : null}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { Folder, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Folder, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -10,6 +10,7 @@ type Category = { id: string; name: string; parentId: string | null };
 
 type ActiveAction = "add-child" | "rename" | null;
 type ContextMenuState = { nodeId: string; x: number; y: number } | null;
+type DeleteTarget = { id: string; name: string } | null;
 
 const ROOT_ID = "root";
 
@@ -273,6 +274,7 @@ export function CategoriesPage() {
   const [actionMode, setActionMode] = useState<ActiveAction>(null);
   const [draftName, setDraftName] = useState("");
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [message, setMessage] = useState("");
 
   const load = async () => setCategories(await api.getCategories());
@@ -303,6 +305,7 @@ export function CategoriesPage() {
   }, [actionMode]);
 
   const tree = useMemo(() => buildTree(categories), [categories]);
+  const selectedNode = useMemo(() => (selectedId === ROOT_ID ? tree : findNode(tree, selectedId) ?? tree), [selectedId, tree]);
   const contextTarget = useMemo(() => (contextMenu ? findNode(tree, contextMenu.nodeId) : null), [tree, contextMenu]);
 
   const cancelAction = () => {
@@ -345,11 +348,18 @@ export function CategoriesPage() {
 
   const deleteCategory = async (targetId: string, targetName: string) => {
     if (targetId === ROOT_ID) return;
-    if (!window.confirm(`'${targetName}' 폴더를 삭제할까요?`)) return;
-    await api.deleteCategory(targetId);
-    if (selectedId === targetId) setSelectedId(ROOT_ID);
-    if (editingNodeId === targetId) setEditingNodeId(ROOT_ID);
+    setContextMenu(null);
+    setDeleteTarget({ id: targetId, name: targetName });
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    await api.deleteCategory(id);
+    if (selectedId === id) setSelectedId(ROOT_ID);
+    if (editingNodeId === id) setEditingNodeId(ROOT_ID);
     setActionMode(null);
+    setDeleteTarget(null);
     setMessage("폴더를 삭제했습니다.");
     await load();
   };
@@ -377,15 +387,50 @@ export function CategoriesPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">카테고리 관리</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">폴더 트리 내부에서 바로 추가, 수정, 삭제를 처리합니다.</p>
       </div>
 
       <div ref={treeRef}>
         <Card className="min-h-[72vh] overflow-hidden p-0">
-        <div className="flex items-center justify-between border-b border-line px-4 py-3 dark:border-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 dark:border-slate-700">
           <div>
             <div className="text-sm font-semibold">폴더 트리</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">우클릭 메뉴와 인라인 입력을 모두 지원합니다.</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              선택된 폴더: <span className="font-medium text-slate-700 dark:text-slate-200">{selectedNode.name}</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              className="h-9 px-3 py-2"
+              onClick={() => openAction("add-child", selectedId)}
+            >
+              <Plus size={14} />
+              추가
+            </Button>
+            <Button
+              type="button"
+              className="h-9 px-3 py-2"
+              disabled={selectedId === ROOT_ID}
+              onClick={() => {
+                if (selectedId === ROOT_ID) return;
+                openAction("rename", selectedId);
+              }}
+            >
+              <Pencil size={14} />
+              수정
+            </Button>
+            <Button
+              type="button"
+              className="h-9 bg-rose-600 px-3 py-2 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={selectedId === ROOT_ID}
+              onClick={() => {
+                if (selectedId === ROOT_ID) return;
+                void deleteCategory(selectedId, selectedNode.name);
+              }}
+            >
+              <Trash2 size={14} />
+              삭제
+            </Button>
           </div>
         </div>
 
@@ -514,6 +559,48 @@ export function CategoriesPage() {
           </button>
         </div>
       )}
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-lg rounded-3xl border border-zinc-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.18)] dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-rose-50 p-2 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300">
+                  <AlertTriangle size={18} />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-lg font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-50">폴더를 삭제할까요?</h2>
+                  <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                    <span className="font-medium text-zinc-900 dark:text-zinc-50">"{deleteTarget.name}"</span> 폴더를 삭제합니다.
+                    해당 카테고리의 하위 카테고리와 하위 문서 모두 삭제되어도 괜찮은지 마지막으로 확인해 주세요.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-full p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+                onClick={() => setDeleteTarget(null)}
+                aria-label="닫기"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+              <Button type="button" className="h-10 px-4 py-2 bg-zinc-200 text-zinc-900 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700" onClick={() => setDeleteTarget(null)}>
+                취소
+              </Button>
+              <Button
+                type="button"
+                className="h-10 bg-rose-600 px-4 py-2 hover:bg-rose-700"
+                onClick={() => void confirmDeleteCategory()}
+              >
+                삭제
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

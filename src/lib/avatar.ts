@@ -2,9 +2,9 @@ import { resolveAssetUrl } from "@/lib/url";
 
 const DEFAULT_AVATAR_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="기본 프로필 이미지">
-  <rect width="100" height="100" rx="50" fill="#E2E8F0"/>
-  <circle cx="50" cy="40" r="18" fill="#94A3B8"/>
-  <path d="M18 86c4-18 19-28 32-28s28 10 32 28" fill="#94A3B8"/>
+  <rect width="100" height="100" rx="22" fill="#F3F4F6"/>
+  <circle cx="50" cy="38" r="15" fill="#CBD5E1"/>
+  <path d="M25 82c5-14 17-22 25-22s20 8 25 22" fill="#CBD5E1"/>
 </svg>
 `.trim();
 

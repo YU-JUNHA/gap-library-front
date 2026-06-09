@@ -21,7 +21,9 @@ type DocumentListQuery = {
   sort?: "createdAt" | "updatedAt" | "author";
   order?: "asc" | "desc";
   categoryId?: string | null;
+  status?: "draft" | "published" | "archived";
 };
+type TrendUnit = "week" | "month" | "year";
 
 function buildQuery(params: Record<string, string | number | boolean | null | undefined>) {
   const searchParams = new URLSearchParams();
@@ -114,6 +116,7 @@ export const api = {
         sort: params.sort ?? "createdAt",
         order: params.order ?? "desc",
         categoryId: params.categoryId,
+        status: params.status,
       })}`,
     ),
   getDocumentById: (id: string) => request<Document>(`/documents/${id}`),
@@ -142,9 +145,42 @@ export const api = {
   getReactions: (documentId: string) => request<{ likeCount: number; likedByMe: boolean }>(`/documents/${documentId}/reactions`),
   like: (documentId: string) => request<{ success?: boolean }>(`/documents/${documentId}/reactions`, { method: "POST", body: JSON.stringify({ type: "like" }) }),
   unlike: (documentId: string) => request<{ success?: boolean }>(`/documents/${documentId}/reactions`, { method: "DELETE" }),
-  getComments: (documentId: string) => request<Array<{ id: string; content: string; createdAt: string; authorId: string }>>(`/documents/${documentId}/comments`),
+  getComments: (documentId: string) =>
+    request<
+      Array<{
+        id: string;
+        content: string;
+        createdAt: string;
+        authorId: string;
+        authorName?: string;
+        authorAvatarUrl?: string | null;
+        authorAvatar?: string | null;
+        authorOrganization?: string | null;
+      }>
+    >(`/documents/${documentId}/comments`),
   addComment: (documentId: string, content: string) => request<{ id: string }>(`/documents/${documentId}/comments`, { method: "POST", body: JSON.stringify({ content }) }),
 
-  getDashboardStats: () => request<{ totalDocuments: number; myDocuments: number; recentEditedDocuments: Array<{ id: string; title: string; updatedAt: string }>; uploadTrend: { points: Array<{ label: string; userName: string; count: number }> } }>("/stats/dashboard"),
-  getMyStats: () => request<{ uploadedFileCount: number; recentUploads: Array<{ documentId: string; title: string }>; myUploadTrend: { points: Array<{ label: string; count: number }> } }>("/stats/mypage"),
+  getDashboardStats: (draftLimit = 5) =>
+    request<{
+      totalDocuments: number;
+      myDocuments: number;
+      recentEditedDocuments: Array<{ id: string; title: string; updatedAt: string }>;
+      draftDocuments: Array<{
+        id: string;
+        title: string;
+        updatedAt: string;
+        categoryId?: string | null;
+        categoryName?: string | null;
+        summary?: string | null;
+        ownerId?: string;
+        ownerName?: string;
+      }>;
+      uploadTrend: { points: Array<{ label: string; userName: string; count: number }> };
+    }>(`/stats/dashboard${buildQuery({ draftLimit })}`),
+  getMyStats: (unit: TrendUnit = "month") =>
+    request<{
+      uploadedFileCount: number;
+      recentUploads: Array<{ documentId: string; title: string; updatedAt?: string }>;
+      myUploadTrend: { unit: TrendUnit; points: Array<{ label: string; count: number }> };
+    }>(`/stats/mypage${buildQuery({ unit })}`),
 };

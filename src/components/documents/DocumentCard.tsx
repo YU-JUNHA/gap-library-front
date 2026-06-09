@@ -1,11 +1,7 @@
 import type { Document } from "@/types/document";
 import { Card } from "@/components/ui/Card";
 import { FileText } from "lucide-react";
-import { getAvatarSrc } from "@/lib/avatar";
-
-function getAvatarUrl(document: Document) {
-  return getAvatarSrc(document.ownerAvatarUrl);
-}
+import { getDocumentAuthorAvatarSrc } from "@/lib/document-avatar";
 
 export function DocumentCard({ document }: { document: Document }) {
   return (
@@ -22,7 +18,7 @@ export function DocumentCard({ document }: { document: Document }) {
         </div>
 
         <div className="mt-auto flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
-          <img src={getAvatarUrl(document)} alt={document.ownerName ?? document.ownerId} className="h-5 w-5 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600" />
+          <img src={getDocumentAuthorAvatarSrc(document)} alt={document.ownerName ?? document.ownerId} className="h-5 w-5 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600" />
           <span className="min-w-0 truncate">{document.ownerName ?? document.ownerId}</span>
           <span className="shrink-0">·</span>
           <span className="shrink-0">{new Date(document.updatedAt).toLocaleString()}</span>
