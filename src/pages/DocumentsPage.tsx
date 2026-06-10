@@ -205,7 +205,8 @@ export function DocumentsPage() {
         q: searchQuery || undefined,
         sort: currentSort.sort,
         order: currentSort.order,
-        categoryId: searchQuery ? undefined : folderId === ROOT_ID ? null : folderId,
+        categoryId: searchQuery || folderId === ROOT_ID ? undefined : folderId,
+        uncategorized: searchQuery ? undefined : folderId === ROOT_ID ? true : undefined,
         status: "published",
       });
       const safeTotalPages = Math.max(1, response.meta.totalPages || 1);
@@ -455,7 +456,7 @@ export function DocumentsPage() {
     if (draftsLoading) return;
 
     const next = await api.createDocument({
-      title: folderId === ROOT_ID ? "새 문서" : `${currentFolder.name} 새 문서`,
+      title: "새 문서",
       content: [{ type: "paragraph", content: "새 문서를 시작하세요." }],
       status: "draft",
       categoryId: folderId === ROOT_ID ? null : folderId,
@@ -466,7 +467,7 @@ export function DocumentsPage() {
   const createFreshDocument = async () => {
     setDraftPickerOpen(false);
     const next = await api.createDocument({
-      title: folderId === ROOT_ID ? "새 문서" : `${currentFolder.name} 새 문서`,
+      title: "새 문서",
       content: [{ type: "paragraph", content: "새 문서를 시작하세요." }],
       status: "draft",
       categoryId: folderId === ROOT_ID ? null : folderId,

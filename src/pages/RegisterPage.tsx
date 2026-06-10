@@ -11,16 +11,38 @@ export function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const validateForm = () => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) return "이름을 입력해주세요.";
+    if (!trimmedEmail) return "이메일을 입력해주세요.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) return "올바른 이메일 형식을 입력해주세요.";
+    if (!password) return "비밀번호를 입력해주세요.";
+    if (password.length < 8) return "비밀번호는 8자 이상 입력해주세요.";
+    if (!confirmPassword) return "비밀번호 확인을 입력해주세요.";
+    if (password !== confirmPassword) return "비밀번호 확인이 일치하지 않습니다.";
+
+    return null;
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     try {
-      await register({ name, email, password, inviteCode });
+      await register({ name: name.trim(), email: email.trim(), password });
       setSuccess("가입 요청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
       setTimeout(() => nav("/login"), 700);
     } catch (err) {
@@ -34,8 +56,8 @@ export function RegisterPage() {
       <Input placeholder="이름" value={name} onChange={(e) => setName(e.target.value)} required />
       <Input placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} required />
       <Input type="password" placeholder="비밀번호" value={password} onChange={(e) => setPassword(e.target.value)} required />
-      <Input placeholder="초대 코드" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required />
-      {error ? <div className="text-sm text-red-500">{error}</div> : null}
+      <Input type="password" placeholder="비밀번호 확인" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+      {error ? <div className="whitespace-pre-line text-sm text-red-500">{error}</div> : null}
       {success ? <div className="text-sm text-emerald-600 dark:text-emerald-300">{success}</div> : null}
       <Button className="w-full">가입하기</Button>
       <Link to="/login" className="block text-center text-sm text-slate-600 hover:underline">로그인 화면으로 돌아가기</Link>

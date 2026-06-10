@@ -168,11 +168,11 @@ export function ExplorerCard(props: ExplorerCardProps) {
                     {document.summary || document.contentText?.slice(0, 100)}
                   </div>
                   <span className="shrink-0 text-slate-300 dark:text-slate-600">|</span>
-                  <div className="flex min-w-0 items-center gap-1 text-xs text-slate-500 dark:text-slate-300">
+                  <div className="flex min-w-0 items-center gap-1.5 text-[13px] text-slate-500 dark:text-slate-300">
                     <img
                       src={getDocumentAuthorAvatarSrc(document)}
                       alt={document.ownerName ?? document.ownerId}
-                      className="h-4 w-4 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600"
+                      className="h-[18px] w-[18px] rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600"
                     />
                     <span className="truncate">{document.ownerName ?? document.ownerId}</span>
                     <span className="shrink-0">·</span>
@@ -189,11 +189,11 @@ export function ExplorerCard(props: ExplorerCardProps) {
                 {document.summary || document.contentText?.slice(0, 100)}
               </div>
 
-              <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-slate-500 dark:text-slate-300">
+              <div className="mt-auto flex items-center gap-2.5 pt-3 text-[13px] text-slate-500 dark:text-slate-300">
                 <img
                   src={getDocumentAuthorAvatarSrc(document)}
                   alt={document.ownerName ?? document.ownerId}
-                  className="h-5 w-5 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600"
+                  className="h-6 w-6 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-600"
                 />
                 <span className="min-w-0 truncate">{document.ownerName ?? document.ownerId}</span>
                 <span className="shrink-0">·</span>

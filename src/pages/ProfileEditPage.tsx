@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Camera } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
@@ -63,84 +63,84 @@ export function ProfileEditPage() {
     };
   }, [avatarPreview]);
 
-  return <div className="max-w-xl space-y-4">
-    <Card>
-      <h2 className="text-lg font-semibold">프로필 정보 변경</h2>
-      <div className="mt-4 space-y-3">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="group relative h-16 w-16 overflow-hidden rounded-full"
-          onClick={() => fileInputRef.current?.click()}
-          title="프로필 사진 변경"
-        >
-          <img
-            src={getAvatarSrc(avatarPreview)}
-            alt={user?.name ?? "avatar"}
-            className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 text-white transition duration-200 group-hover:bg-slate-900/45">
-            <Camera size={18} className="opacity-0 transition duration-200 group-hover:opacity-100" />
-          </div>
-        </button>
-        <div className="text-sm text-slate-500 dark:text-slate-300">
-          <div>이미지 파일만 가능</div>
-          <div>최대 2MB</div>
-          {user?.avatarUrl ? (
+  return (
+    <div className="w-full py-4 lg:py-6">
+      <Card className="overflow-hidden rounded-[32px] border-slate-200 bg-white shadow-[0_16px_34px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="border-b border-slate-200/70 px-6 py-5 dark:border-slate-800">
+          <h2 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50">프로필 정보 변경</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            이름, 조직, 아바타를 한 화면에서 바로 수정할 수 있습니다.
+          </p>
+        </div>
+
+        <div className="grid gap-8 px-6 py-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:px-8 lg:py-8">
+          <div className="flex flex-col items-center gap-4 rounded-[28px] border border-slate-200/70 bg-slate-50/70 px-5 py-6 text-center dark:border-slate-800 dark:bg-slate-950/35">
             <button
               type="button"
-              className="mt-2 rounded-md border border-line px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
-              onClick={resetToDefaultAvatar}
+              className="group relative h-28 w-28 overflow-hidden rounded-full shadow-xl ring-1 ring-slate-200 transition hover:scale-[1.02] dark:ring-slate-700 sm:h-32 sm:w-32"
+              onClick={() => fileInputRef.current?.click()}
+              title="프로필 사진 변경"
             >
-              기본 이미지로 변경
+              <img
+                src={getAvatarSrc(avatarPreview, user?.name ?? "avatar")}
+                alt={user?.name ?? "avatar"}
+                className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 text-white transition duration-200 group-hover:bg-slate-900/45">
+                <Camera size={20} className="opacity-0 transition duration-200 group-hover:opacity-100" />
+              </div>
             </button>
-          ) : null}
-        </div>
-      </div>
-      <div>
-        <label className="mb-1 block text-sm">이름</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm">조직</label>
-        <Input value={organization} onChange={(e) => setOrganization(e.target.value)} />
-      </div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          onFileChange(e.target.files?.[0]);
-          e.currentTarget.value = "";
-        }}
-      />
-      {error && <div className="text-sm text-red-600 dark:text-red-300">{error}</div>}
-      <div className="flex gap-2">
-        <Button
-          onClick={async () => {
-            setError("");
-            await updateProfile({ name, organization, avatarUrl: avatarReset ? null : undefined });
-            if (avatarFile) await uploadAvatar(avatarFile);
-            nav("/mypage");
-          }}
-        >
-          저장
-        </Button>
-        <Button className="bg-slate-700" onClick={() => nav("/mypage")}>취소</Button>
-      </div>
-      </div>
-    </Card>
+            <div className="text-sm text-slate-500 dark:text-slate-300">
+              <div>이미지 파일만 가능</div>
+              <div>최대 2MB</div>
+              {user?.avatarUrl ? (
+                <button
+                  type="button"
+                  className="mt-3 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  onClick={resetToDefaultAvatar}
+                >
+                  기본 이미지로 변경
+                </button>
+              ) : null}
+            </div>
+          </div>
 
-    <Card>
-      <h3 className="text-lg font-semibold">비밀번호 변경</h3>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">현재 비밀번호를 확인한 뒤 새 비밀번호로 바꿀 수 있습니다.</p>
-      <Link
-        to="/mypage/change-password"
-        className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-300"
-      >
-        비밀번호 변경하기
-      </Link>
-    </Card>
-  </div>;
+          <div className="space-y-5">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">이름</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">조직</label>
+              <Input value={organization} onChange={(e) => setOrganization(e.target.value)} />
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                onFileChange(e.target.files?.[0]);
+                e.currentTarget.value = "";
+              }}
+            />
+            {error && <div className="text-sm text-red-600 dark:text-red-300">{error}</div>}
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                onClick={async () => {
+                  setError("");
+                  await updateProfile({ name, organization, avatarUrl: avatarReset ? null : undefined });
+                  if (avatarFile) await uploadAvatar(avatarFile);
+                  nav("/mypage");
+                }}
+              >
+                저장
+              </Button>
+              <Button className="bg-slate-700" onClick={() => nav("/mypage")}>취소</Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
 }

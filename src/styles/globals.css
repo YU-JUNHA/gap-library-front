@@ -57,3 +57,8 @@ html.dark .text-slate-500 {
 .editor-surface [contenteditable="true"] {
   color: inherit !important;
 }
+
+/* Document pages should feel like a single sheet with a shared left edge */
+.document-sheet .bn-editor {
+  padding-inline: 0 !important;
+}

@@ -4,7 +4,7 @@ export type Document = {
   id: string;
   title: string;
   content: any[];
-  contentText: string;
+  contentText?: string;
   summary?: string;
   tags: string[];
   category?: string;

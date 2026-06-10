@@ -32,9 +32,8 @@ export const mockApi = {
     storage.set(storage.keys.auth, user);
     return user;
   },
-  async register(payload: { name: string; email: string; password: string; inviteCode: string }): Promise<void> {
+  async register(payload: { name: string; email: string; password: string }): Promise<void> {
     await delay();
-    if (!payload.inviteCode.trim()) throw new Error("초대 코드를 입력해주세요.");
     const users = getUsers();
     const hasUser = users.some((u) => u.email.toLowerCase() === payload.email.toLowerCase());
     if (hasUser) throw new Error("이미 가입된 이메일입니다.");
@@ -47,7 +46,6 @@ export const mockApi = {
       name: payload.name,
       email: payload.email,
       password: payload.password,
-      inviteCode: payload.inviteCode,
       organization: "GAP",
       requestedAt: new Date().toISOString(),
     };

@@ -9,11 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@blocknote/core": "^0.23.0",
-    "@blocknote/mantine": "^0.23.0",
-    "@blocknote/react": "^0.23.0",
+    "@blocknote/core": "^0.51.4",
+    "@blocknote/mantine": "^0.51.4",
+    "@blocknote/react": "^0.51.4",
+    "@blocknote/xl-docx-exporter": "^0.51.4",
+    "@blocknote/xl-pdf-exporter": "^0.51.4",
+    "@fontsource/noto-sans-kr": "^5.2.9",
     "@mantine/core": "^8.3.11",
     "@mantine/hooks": "^8.3.11",
+    "@react-pdf/renderer": "^4.5.1",
     "lucide-react": "^0.525.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

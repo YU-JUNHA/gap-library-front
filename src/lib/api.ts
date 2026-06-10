@@ -3,6 +3,7 @@ import type { Document } from "@/types/document";
 import type { User } from "@/types/user";
 import type { SignupRequest } from "@/types/admin";
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8000/api/v1";
+const AUTH_FORCED_LOGOUT_EVENT = "gap-auth-forced-logout";
 
 type ApiEnvelope<T> = { data: T; meta?: { page: number; pageSize: number; total: number } };
 type PagedMeta = {
@@ -21,9 +22,35 @@ type DocumentListQuery = {
   sort?: "createdAt" | "updatedAt" | "author";
   order?: "asc" | "desc";
   categoryId?: string | null;
+  uncategorized?: boolean;
   status?: "draft" | "published" | "archived";
 };
 type TrendUnit = "week" | "month" | "year";
+type SpellCheckIssue = {
+  type: "spacing" | "correction";
+  original: string;
+  suggestion: string;
+  start: number;
+  end: number;
+};
+type SpellCheckSection = {
+  originalText: string;
+  correctedText: string;
+  issues: SpellCheckIssue[];
+};
+type SpellCheckResult = {
+  title: SpellCheckSection;
+  body: SpellCheckSection;
+  summary: { issueCount: number };
+};
+
+type ValidationIssue = {
+  field?: string;
+  message?: string;
+  msg?: string;
+  path?: string | string[];
+  loc?: Array<string | number>;
+};
 
 function buildQuery(params: Record<string, string | number | boolean | null | undefined>) {
   const searchParams = new URLSearchParams();
@@ -35,7 +62,7 @@ function buildQuery(params: Record<string, string | number | boolean | null | un
   return query ? `?${query}` : "";
 }
 
-async function requestEnvelope<T>(path: string, init: RequestInit = {}, retry = true): Promise<ApiEnvelope<T>> {
+async function fetchWithAuth(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
   const accessToken = storage.get<string | null>(storage.keys.accessToken, null);
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
@@ -44,11 +71,86 @@ async function requestEnvelope<T>(path: string, init: RequestInit = {}, retry = 
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (res.status === 401 && retry) {
     const refreshed = await refreshToken();
-    if (refreshed) return requestEnvelope<T>(path, init, false);
+    if (refreshed) return fetchWithAuth(path, init, false);
+    forceLogoutIfNeeded(path);
   }
+  return res;
+}
+
+function prettifyFieldName(field: string) {
+  const normalized = field.replace(/\.\d+\./g, ".").replace(/\[\d+\]/g, "");
+  const fieldMap: Record<string, string> = {
+    name: "이름",
+    email: "이메일",
+    password: "비밀번호",
+    confirmPassword: "비밀번호 확인",
+    title: "제목",
+    content: "내용",
+  };
+  return fieldMap[normalized] ?? normalized;
+}
+
+function extractValidationIssues(payload: any): ValidationIssue[] {
+  const candidates = [
+    payload?.error?.details,
+    payload?.error?.issues,
+    payload?.details,
+    payload?.issues,
+    payload?.errors,
+    payload?.detail,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate.filter((issue) => issue && typeof issue === "object");
+    }
+  }
+
+  return [];
+}
+
+function formatValidationIssue(issue: ValidationIssue) {
+  const rawField =
+    issue.field
+    ?? (Array.isArray(issue.path) ? issue.path.join(".") : issue.path)
+    ?? (Array.isArray(issue.loc) ? issue.loc.filter((part) => part !== "body").join(".") : undefined);
+  const message = issue.message ?? issue.msg;
+  if (!rawField && message) return message;
+  if (!rawField) return null;
+
+  const fieldLabel = prettifyFieldName(rawField);
+  if (!message) return `${fieldLabel} 값을 확인해주세요.`;
+  return `${fieldLabel}: ${message}`;
+}
+
+function extractApiErrorMessage(payload: any) {
+  const directMessage =
+    payload?.error?.message
+    ?? payload?.message
+    ?? (typeof payload?.error === "string" ? payload.error : null)
+    ?? (typeof payload?.detail === "string" ? payload.detail : null);
+
+  const issueMessages = extractValidationIssues(payload)
+    .map(formatValidationIssue)
+    .filter((message): message is string => Boolean(message));
+
+  if (issueMessages.length > 0) {
+    return Array.from(new Set(issueMessages)).join("\n");
+  }
+
+  if (directMessage && directMessage !== "요청 데이터가 올바르지 않습니다.") {
+    return directMessage;
+  }
+
+  if (directMessage) return `${directMessage}\n입력한 항목을 다시 확인해주세요.`;
+  return "API 요청 중 오류가 발생했습니다.";
+}
+
+async function requestEnvelope<T>(path: string, init: RequestInit = {}, retry = true): Promise<ApiEnvelope<T>> {
+  const res = await fetchWithAuth(path, init, retry);
   if (!res.ok) {
     const payload = await res.json().catch(() => null);
-    throw new Error(payload?.error?.message ?? "API 요청 중 오류가 발생했습니다.");
+    throw new Error(extractApiErrorMessage(payload));
   }
   return res.json() as Promise<ApiEnvelope<T>>;
 }
@@ -76,6 +178,19 @@ export function clearTokens() {
   storage.remove(storage.keys.refreshToken);
 }
 
+function forceLogoutIfNeeded(path: string) {
+  const authPaths = ["/auth/login", "/auth/refresh", "/signup-requests"];
+  if (authPaths.some((prefix) => path.startsWith(prefix))) return;
+
+  clearTokens();
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(new Event(AUTH_FORCED_LOGOUT_EVENT));
+  if (window.location.pathname !== "/login") {
+    window.location.assign("/login");
+  }
+}
+
 async function refreshToken(): Promise<boolean> {
   const refresh = storage.get<string | null>(storage.keys.refreshToken, null);
   if (!refresh) return false;
@@ -96,7 +211,7 @@ async function refreshToken(): Promise<boolean> {
 export const api = {
   login: (email: string, password: string) => request<{ accessToken: string; refreshToken: string; user: User }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   me: () => request<User>("/auth/me"),
-  register: (payload: { name: string; email: string; password: string; inviteCode: string }) => request<SignupRequest>("/signup-requests", { method: "POST", body: JSON.stringify(payload) }),
+  register: (payload: { name: string; email: string; password: string }) => request<SignupRequest>("/signup-requests", { method: "POST", body: JSON.stringify(payload) }),
   logout: (refreshTokenValue: string) => request<{ success: boolean }>("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken: refreshTokenValue }) }),
   updateProfile: (patch: { name?: string; organization?: string; avatarUrl?: string | null }) => request<User>("/users/me", { method: "PATCH", body: JSON.stringify(patch) }),
   changePassword: (payload: { currentPassword: string; newPassword: string }) =>
@@ -106,7 +221,8 @@ export const api = {
     formData.append("file", file);
     return request<{ avatarUrl: string }>("/users/me/avatar", { method: "POST", body: formData });
   },
-
+  spellCheckDocument: (payload: { title?: string; content: any[] }) =>
+    request<SpellCheckResult>("/documents/spell-check", { method: "POST", body: JSON.stringify(payload) }),
   getDocuments: (params: DocumentListQuery = {}) =>
     requestPage<Document>(
       `/documents${buildQuery({
@@ -116,6 +232,7 @@ export const api = {
         sort: params.sort ?? "createdAt",
         order: params.order ?? "desc",
         categoryId: params.categoryId,
+        uncategorized: params.uncategorized,
         status: params.status,
       })}`,
     ),

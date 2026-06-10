@@ -169,7 +169,7 @@ export function DashboardPage() {
   const myUploadTrendPoints = useMemo(() => buildMyUploadPoints(myPublishedDocuments, trendUnit), [myPublishedDocuments, trendUnit]);
 
   return <div className="space-y-6">
-    <h2 className="text-2xl font-bold">안녕하세요, {user?.name}님</h2>
+    <h3 className="text-3xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-50 sm:text-4xl">안녕하세요, {user?.name}님</h3>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Card>전체 문서 수 <div className="mt-2 text-2xl font-bold">{stats?.totalDocuments ?? 0}</div></Card>
       <Card>내 문서 수 <div className="mt-2 text-2xl font-bold">{stats?.myDocuments ?? 0}</div></Card>

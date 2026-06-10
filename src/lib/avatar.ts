@@ -1,15 +1,16 @@
 import { resolveAssetUrl } from "@/lib/url";
 
-const DEFAULT_AVATAR_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="기본 프로필 이미지">
-  <rect width="100" height="100" rx="22" fill="#F3F4F6"/>
-  <circle cx="50" cy="38" r="15" fill="#CBD5E1"/>
-  <path d="M25 82c5-14 17-22 25-22s20 8 25 22" fill="#CBD5E1"/>
-</svg>
-`.trim();
+function buildFallbackAvatarSvg() {
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="프로필 아바타">
+    <circle cx="60" cy="60" r="60" fill="#e5e7eb"/>
+    <circle cx="60" cy="45" r="20" fill="#94a3b8"/>
+    <path d="M24 102c6-18 20-30 36-30s30 12 36 30" fill="#94a3b8"/>
+  </svg>
+  `.trim();
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 
-export const DEFAULT_AVATAR_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(DEFAULT_AVATAR_SVG)}`;
-
-export function getAvatarSrc(url?: string | null) {
-  return resolveAssetUrl(url) || DEFAULT_AVATAR_DATA_URL;
+export function getAvatarSrc(url?: string | null, _name?: string | null) {
+  return resolveAssetUrl(url) || buildFallbackAvatarSvg();
 }

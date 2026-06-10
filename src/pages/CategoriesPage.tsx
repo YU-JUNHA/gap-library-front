@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { api } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 
 type FolderNode = { id: string; name: string; children: FolderNode[] };
 type Category = { id: string; name: string; parentId: string | null };
@@ -64,6 +65,7 @@ function TreeNode(props: {
   onCommitRename: () => void;
   onDeleteNode: (id: string, name: string) => void;
   onCancelAction: () => void;
+  canDelete: boolean;
 }) {
   const {
     node,
@@ -85,6 +87,7 @@ function TreeNode(props: {
     onCommitRename,
     onDeleteNode,
     onCancelAction,
+    canDelete,
   } = props;
 
   const isRoot = node.id === ROOT_ID;
@@ -183,19 +186,21 @@ function TreeNode(props: {
                 >
                   <Pencil size={12} />
                 </button>
-                <button
-                  type="button"
-                  className="rounded p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-30"
-                  title="삭제"
-                  disabled={isRoot}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isRoot) return;
-                    onDeleteNode(node.id, node.name);
-                  }}
-                >
-                  <Trash2 size={12} />
-                </button>
+                {canDelete ? (
+                  <button
+                    type="button"
+                    className="rounded p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-30"
+                    title="삭제"
+                    disabled={isRoot}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isRoot) return;
+                      onDeleteNode(node.id, node.name);
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                ) : null}
               </span>
             )}
           </>
@@ -257,6 +262,7 @@ function TreeNode(props: {
               onCommitRename={onCommitRename}
               onDeleteNode={onDeleteNode}
               onCancelAction={onCancelAction}
+              canDelete={canDelete}
             />
           ))}
         </div>
@@ -266,6 +272,7 @@ function TreeNode(props: {
 }
 
 export function CategoriesPage() {
+  const { user } = useAuth();
   const treeRef = useRef<HTMLDivElement | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedId, setSelectedId] = useState(ROOT_ID);
@@ -276,6 +283,7 @@ export function CategoriesPage() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [message, setMessage] = useState("");
+  const canDeleteCategory = user?.role === "admin";
 
   const load = async () => setCategories(await api.getCategories());
 
@@ -347,12 +355,14 @@ export function CategoriesPage() {
   };
 
   const deleteCategory = async (targetId: string, targetName: string) => {
+    if (!canDeleteCategory) return;
     if (targetId === ROOT_ID) return;
     setContextMenu(null);
     setDeleteTarget({ id: targetId, name: targetName });
   };
 
   const confirmDeleteCategory = async () => {
+    if (!canDeleteCategory) return;
     if (!deleteTarget) return;
     const { id } = deleteTarget;
     await api.deleteCategory(id);
@@ -385,10 +395,6 @@ export function CategoriesPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">카테고리 관리</h1>
-      </div>
-
       <div ref={treeRef}>
         <Card className="min-h-[72vh] overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 dark:border-slate-700">
@@ -419,18 +425,20 @@ export function CategoriesPage() {
               <Pencil size={14} />
               수정
             </Button>
-            <Button
-              type="button"
-              className="h-9 bg-rose-600 px-3 py-2 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={selectedId === ROOT_ID}
-              onClick={() => {
-                if (selectedId === ROOT_ID) return;
-                void deleteCategory(selectedId, selectedNode.name);
-              }}
-            >
-              <Trash2 size={14} />
-              삭제
-            </Button>
+            {canDeleteCategory ? (
+              <Button
+                type="button"
+                className="h-9 bg-rose-600 px-3 py-2 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={selectedId === ROOT_ID}
+                onClick={() => {
+                  if (selectedId === ROOT_ID) return;
+                  void deleteCategory(selectedId, selectedNode.name);
+                }}
+              >
+                <Trash2 size={14} />
+                삭제
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -519,6 +527,7 @@ export function CategoriesPage() {
                 onCommitRename={renameCategory}
                 onDeleteNode={deleteCategory}
                 onCancelAction={cancelAction}
+                canDelete={canDeleteCategory}
               />
             ))}
           </div>
@@ -549,14 +558,16 @@ export function CategoriesPage() {
           >
             <Pencil size={14} /> 이름 수정
           </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={contextTarget.id === ROOT_ID}
-            onClick={() => void deleteCategory(contextTarget.id, contextTarget.name)}
-          >
-            <Trash2 size={14} /> 삭제
-          </button>
+          {canDeleteCategory ? (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={contextTarget.id === ROOT_ID}
+              onClick={() => void deleteCategory(contextTarget.id, contextTarget.name)}
+            >
+              <Trash2 size={14} /> 삭제
+            </button>
+          ) : null}
         </div>
       )}
 

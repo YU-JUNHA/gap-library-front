@@ -40,7 +40,6 @@ export function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">관리자 페이지</h1>
       <Card>
         <h2 className="mb-3 text-lg font-semibold">회원가입 요청 승인</h2>
         {loading ? (

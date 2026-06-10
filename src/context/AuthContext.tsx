@@ -9,7 +9,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (payload: { name: string; email: string; password: string; inviteCode: string }) => Promise<void>;
+  register: (payload: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (patch: { name?: string; organization?: string; avatarUrl?: string | null }) => Promise<void>;
   changePassword: (payload: { currentPassword: string; newPassword: string }) => Promise<void>;
@@ -36,6 +36,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTokens();
       setUser(null);
     }).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const handleForcedLogout = () => {
+      storage.remove(storage.keys.auth);
+      clearTokens();
+      setUser(null);
+    };
+
+    window.addEventListener("gap-auth-forced-logout", handleForcedLogout);
+    return () => window.removeEventListener("gap-auth-forced-logout", handleForcedLogout);
   }, []);
 
   const value = useMemo<AuthContextValue>(() => ({

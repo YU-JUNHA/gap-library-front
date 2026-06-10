@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/Button";
 export function LoginPage() {
   const { login } = useAuth();
   const nav = useNavigate();
-  const [email, setEmail] = useState("admin@gap.org");
-  const [password, setPassword] = useState("1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -33,7 +33,6 @@ export function LoginPage() {
       </div>
       {error && <p className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-600">{error}</p>}
       <Button type="submit" className="mt-4 w-full">로그인</Button>
-      <Button type="button" className="mt-2 w-full bg-slate-700" onClick={() => { setEmail("admin@gap.org"); setPassword("1234"); }}>데모 로그인</Button>
       <Link to="/register" className="mt-4 block text-center text-sm text-slate-600 hover:underline">회원가입</Link>
     </form>
   </div>;

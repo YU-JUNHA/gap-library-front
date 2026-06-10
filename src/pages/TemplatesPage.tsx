@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
 
 type TemplateItem = { id: string; name: string; content: string; updatedAt: string };
@@ -12,8 +11,6 @@ type TemplateItem = { id: string; name: string; content: string; updatedAt: stri
 export function TemplatesPage() {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftName, setDraftName] = useState("");
   const [message, setMessage] = useState("");
   const selected = useMemo(() => templates.find((t) => t.id === selectedId) ?? null, [templates, selectedId]);
   const editor = useCreateBlockNote({ initialContent: [{ type: "paragraph", content: "" }] });
@@ -27,8 +24,6 @@ export function TemplatesPage() {
 
   useEffect(() => {
     if (!selected) return;
-    setDraftName(selected.name);
-    setIsEditing(false);
     (async () => {
       const blocks = await editor.tryParseMarkdownToBlocks(selected.content || "");
       editor.replaceBlocks(editor.document, blocks.length ? blocks : [{ type: "paragraph", content: "" }]);
@@ -37,12 +32,11 @@ export function TemplatesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">서식 관리</h1>
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <div className="text-sm font-medium">서식 목록</div>
-            <Button onClick={async () => { await api.createTemplate({ name: "새 서식", content: "# 새 서식\n\n내용을 작성하세요." }); await load(); }} className="px-2 py-1 text-xs"><Plus size={14} />추가</Button>
+            <Button onClick={async () => { await api.createTemplate({ name: "새 서식", content: "# 새 서식\n\n내용을 작성하세요." }); await load(); setMessage("새 서식을 추가했습니다."); }} className="px-2 py-1 text-xs"><Plus size={14} />추가</Button>
           </div>
           <div className="space-y-1">
             {templates.map((tpl) => (
@@ -56,26 +50,9 @@ export function TemplatesPage() {
         <Card className="space-y-3">
           {!selected ? <div className="text-sm text-slate-500 dark:text-slate-300">서식을 선택해주세요.</div> : (
             <>
-              <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} disabled={!isEditing} />
+              <div className="text-lg font-semibold text-slate-900 dark:text-slate-50">{selected.name}</div>
               <div className="editor-surface rounded-lg border border-line bg-white p-3 dark:bg-slate-800">
-                <BlockNoteView editor={editor} editable={isEditing} />
-              </div>
-              <div className="flex gap-2">
-                {isEditing ? (
-                  <Button onClick={async () => {
-                    if (!selected) return;
-                    const markdown = await editor.blocksToMarkdownLossy(editor.document);
-                    await api.updateTemplate(selected.id, { name: draftName.trim() || selected.name, content: markdown || "" });
-                    await load();
-                    setMessage("서식이 수정되었습니다.");
-                    setIsEditing(false);
-                  }}>저장</Button>
-                ) : (
-                  <>
-                    <Button onClick={() => { setIsEditing(true); setMessage("수정 모드입니다. 변경 후 저장 버튼을 눌러주세요."); }}>수정</Button>
-                    <Button className="bg-red-600 hover:bg-red-500" onClick={async () => { if (!selected) return; await api.deleteTemplate(selected.id); await load(); setMessage("서식을 삭제했습니다."); }}><Trash2 size={14} />삭제</Button>
-                  </>
-                )}
+                <BlockNoteView editor={editor} editable={false} />
               </div>
               {message && <div className="text-sm text-slate-600 dark:text-slate-300">{message}</div>}
             </>
