@@ -86,6 +86,79 @@ function replaceLineAtIndex(text: string, lineIndex: number, nextLine: string) {
   return lines.join("\n");
 }
 
+type TextDiffSegment = {
+  type: "same" | "removed" | "added";
+  text: string;
+};
+
+function buildTextDiffSegments(original: string, corrected: string): TextDiffSegment[] {
+  if (original === corrected) {
+    return [{ type: "same", text: original || " " }];
+  }
+
+  let start = 0;
+  while (start < original.length && start < corrected.length && original[start] === corrected[start]) {
+    start += 1;
+  }
+
+  let endOriginal = original.length - 1;
+  let endCorrected = corrected.length - 1;
+  while (endOriginal >= start && endCorrected >= start && original[endOriginal] === corrected[endCorrected]) {
+    endOriginal -= 1;
+    endCorrected -= 1;
+  }
+
+  const segments: TextDiffSegment[] = [];
+  if (start > 0) {
+    segments.push({ type: "same", text: original.slice(0, start) });
+  }
+  if (endOriginal >= start) {
+    segments.push({ type: "removed", text: original.slice(start, endOriginal + 1) });
+  }
+  if (endCorrected >= start) {
+    segments.push({ type: "added", text: corrected.slice(start, endCorrected + 1) });
+  }
+  if (endOriginal + 1 < original.length) {
+    segments.push({ type: "same", text: original.slice(endOriginal + 1) });
+  }
+
+  return segments.filter((segment) => segment.text.length > 0);
+}
+
+function DiffText({ original, corrected }: { original: string; corrected: string }) {
+  const segments = buildTextDiffSegments(original, corrected);
+
+  return (
+    <span className="break-words whitespace-pre-wrap">
+      {segments.map((segment, index) => {
+        if (segment.type === "removed") {
+          return (
+            <span
+              key={`removed-${index}`}
+              className="rounded bg-rose-100 px-1 text-rose-700 line-through decoration-2 decoration-rose-500 dark:bg-rose-950/40 dark:text-rose-200 dark:decoration-rose-300"
+            >
+              {segment.text}
+            </span>
+          );
+        }
+
+        if (segment.type === "added") {
+          return (
+            <span
+              key={`added-${index}`}
+              className="rounded bg-emerald-100 px-1 text-emerald-900 underline decoration-2 decoration-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-100 dark:decoration-emerald-300"
+            >
+              {segment.text}
+            </span>
+          );
+        }
+
+        return <span key={`same-${index}`}>{segment.text}</span>;
+      })}
+    </span>
+  );
+}
+
 function buildCategoryTree(categories: CategoryItem[]) {
   const map = new Map<string, CategoryNode>();
   categories.forEach((category) => {
@@ -494,13 +567,13 @@ function SpellCheckResultModal({
                   <div>
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">원문</div>
                     <div className="mt-1 rounded-xl bg-white px-3 py-2 text-sm leading-7 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                      {result.title.originalText || "없음"}
+                      <DiffText original={result.title.originalText || ""} corrected={result.title.correctedText || ""} />
                     </div>
                   </div>
                   <div>
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">교정 제안</div>
                     <div className="mt-1 rounded-xl bg-emerald-50 px-3 py-2 text-sm leading-7 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100">
-                      {result.title.correctedText || "없음"}
+                      <DiffText original={result.title.originalText || ""} corrected={result.title.correctedText || ""} />
                     </div>
                   </div>
                 </div>
@@ -546,14 +619,14 @@ function SpellCheckResultModal({
                     <div className="mt-3 grid gap-3 lg:grid-cols-2">
                       <div>
                         <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">원문</div>
-                        <div className="mt-1 min-h-12 whitespace-pre-wrap rounded-xl bg-white px-3 py-2 text-sm leading-7 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                          {line.originalText || " "}
+                        <div className="mt-1 min-h-12 rounded-xl bg-white px-3 py-2 text-sm leading-7 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                          <DiffText original={line.originalText || ""} corrected={line.correctedText || ""} />
                         </div>
                       </div>
                       <div>
                         <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">교정 제안</div>
-                        <div className="mt-1 min-h-12 whitespace-pre-wrap rounded-xl bg-emerald-50 px-3 py-2 text-sm leading-7 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100">
-                          {line.correctedText || " "}
+                        <div className="mt-1 min-h-12 rounded-xl bg-emerald-50 px-3 py-2 text-sm leading-7 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100">
+                          <DiffText original={line.originalText || ""} corrected={line.correctedText || ""} />
                         </div>
                       </div>
                     </div>
@@ -673,7 +746,7 @@ export function DocumentDetailPage() {
 
   const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
   const editorTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
-  const canEditDocument = !!user && user.id === doc?.ownerId;
+  const canEditDocument = !!user && (user.role === "admin" || user.id === doc?.ownerId);
 
   const markDirty = (nextMessage?: string) => {
     setSaveState("dirty");
@@ -842,7 +915,7 @@ export function DocumentDetailPage() {
       <Card className="max-w-2xl">
         <h2 className="text-xl font-semibold text-slate-950 dark:text-slate-50">수정 권한이 없습니다.</h2>
         <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-300">
-          본인이 작성한 문서만 수정할 수 있습니다. 이 문서는 읽기와 추출만 가능합니다.
+          본인이 작성한 문서 또는 관리자만 수정할 수 있습니다. 이 문서는 읽기와 추출만 가능합니다.
         </p>
         <div className="mt-5 flex gap-2">
           <Button onClick={() => nav(`/documents/${doc.id}`)}>문서 보기</Button>

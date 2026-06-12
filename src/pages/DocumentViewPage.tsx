@@ -175,7 +175,7 @@ export function DocumentViewPage() {
     editor.replaceBlocks(editor.document, blocks.length ? blocks : [{ type: "paragraph", content: "" }]);
   }, [doc?.id, editor]);
 
-  const canManageDocument = !!user && user.id === doc?.ownerId;
+  const canManageDocument = !!user && (user.role === "admin" || user.id === doc?.ownerId);
 
   const likeButtonClassName = useMemo(
     () =>
