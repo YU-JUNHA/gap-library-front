@@ -96,7 +96,9 @@ export function DashboardPage() {
     updatedAt: string;
     ownerName?: string;
   }>>([]);
+  const [publishedDocumentCount, setPublishedDocumentCount] = useState(0);
   const [myPublishedDocuments, setMyPublishedDocuments] = useState<MyPublishedDocument[]>([]);
+  const [myPublishedDocumentCount, setMyPublishedDocumentCount] = useState(0);
   const [trendUnit, setTrendUnit] = useState<TrendUnit>("week");
 
   useEffect(() => {
@@ -113,6 +115,7 @@ export function DashboardPage() {
         status: "published",
       })
       .then((response) => {
+        setPublishedDocumentCount(response.meta.total ?? 0);
         setRecentPublishedDocuments(
           response.data.map((document) => ({
             id: document.id,
@@ -122,7 +125,10 @@ export function DashboardPage() {
           })),
         );
       })
-      .catch(() => setRecentPublishedDocuments([]));
+      .catch(() => {
+        setPublishedDocumentCount(0);
+        setRecentPublishedDocuments([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -154,11 +160,17 @@ export function DashboardPage() {
         page += 1;
       }
 
-      if (alive) setMyPublishedDocuments(collected);
+      if (alive) {
+        setMyPublishedDocuments(collected);
+        setMyPublishedDocumentCount(collected.length);
+      }
     };
 
     loadMyPublishedDocuments().catch(() => {
-      if (alive) setMyPublishedDocuments([]);
+      if (alive) {
+        setMyPublishedDocuments([]);
+        setMyPublishedDocumentCount(0);
+      }
     });
 
     return () => {
@@ -171,8 +183,8 @@ export function DashboardPage() {
   return <div className="space-y-6">
     <h3 className="text-3xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-50 sm:text-4xl">안녕하세요, {user?.name}님</h3>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Card>전체 문서 수 <div className="mt-2 text-2xl font-bold">{stats?.totalDocuments ?? 0}</div></Card>
-      <Card>내 문서 수 <div className="mt-2 text-2xl font-bold">{stats?.myDocuments ?? 0}</div></Card>
+      <Card>전체 문서 수 <div className="mt-2 text-2xl font-bold">{publishedDocumentCount}</div></Card>
+      <Card>내 문서 수 <div className="mt-2 text-2xl font-bold">{myPublishedDocumentCount}</div></Card>
     </div>
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>
