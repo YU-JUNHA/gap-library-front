@@ -59,7 +59,7 @@ export function RegisterPage() {
       <Input type="password" placeholder="비밀번호 확인" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
       {error ? <div className="whitespace-pre-line text-sm text-red-500">{error}</div> : null}
       {success ? <div className="text-sm text-emerald-600 dark:text-emerald-300">{success}</div> : null}
-      <Button className="w-full">가입하기</Button>
+      <Button type="submit" className="w-full">가입하기</Button>
       <Link to="/login" className="block text-center text-sm text-slate-600 hover:underline">로그인 화면으로 돌아가기</Link>
     </form>
   </div>;
