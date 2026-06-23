@@ -134,6 +134,8 @@ export function DocumentViewPage() {
   const [meta, setMeta] = useState<DocMeta>({ likes: 0, likedByMe: false, comments: [] });
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportLoading, setExportLoading] = useState<"pdf" | "docx" | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const editor = useCreateBlockNote({
     initialContent: [{ type: "paragraph", content: "" }],
   });
@@ -214,6 +216,19 @@ export function DocumentViewPage() {
     }
   };
 
+  const confirmDeleteDocument = async () => {
+    if (!doc || deleteLoading) return;
+    setDeleteLoading(true);
+    try {
+      await api.deleteDocument(doc.id);
+      nav("/documents");
+    } catch (error) {
+      console.error(error);
+      window.alert(error instanceof Error ? error.message : "문서 삭제에 실패했습니다.");
+      setDeleteLoading(false);
+    }
+  };
+
   if (!doc) return <div>문서를 찾을 수 없습니다.</div>;
 
   return (
@@ -251,10 +266,7 @@ export function DocumentViewPage() {
                     </Button>
                     <Button
                       className="bg-red-600"
-                      onClick={async () => {
-                        await api.deleteDocument(doc.id);
-                        nav("/documents");
-                      }}
+                      onClick={() => setDeleteConfirmOpen(true)}
                     >
                       <Trash2 size={14} />
                       삭제
@@ -351,6 +363,28 @@ export function DocumentViewPage() {
             void downloadExport(format);
           }}
         />
+      ) : null}
+
+      {deleteConfirmOpen ? (
+        <ModalShell title="문서를 삭제할까요?" onClose={() => setDeleteConfirmOpen(false)}>
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-red-200 bg-red-50/70 p-5 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100">
+              삭제하면 문서가 완전히 제거되고 되돌릴 수 없습니다. 정말 삭제할까요?
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                className="bg-slate-100 text-slate-800 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={deleteLoading}
+              >
+                취소
+              </Button>
+              <Button className="bg-red-600" onClick={() => void confirmDeleteDocument()} disabled={deleteLoading}>
+                {deleteLoading ? "삭제 중..." : "삭제"}
+              </Button>
+            </div>
+          </div>
+        </ModalShell>
       ) : null}
     </div>
   );
